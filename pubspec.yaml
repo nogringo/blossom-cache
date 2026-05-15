@@ -1,14 +1,10 @@
 name: blossom_cache
-description: A starting point for Dart libraries or applications.
-version: 1.0.0
+description: A network-free local Blossom blob store for Dart. Works on web, native, and server.
+version: 0.1.0
 # repository: https://github.com/my_org/my_repo
 
 environment:
   sdk: ^3.11.5
-
-# Add regular dependencies here.
-dependencies:
-  # path: ^1.9.0
 
 dev_dependencies:
   lints: ^6.0.0
