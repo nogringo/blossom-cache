@@ -1,8 +1,6 @@
-/// Support for doing something awesome.
-///
-/// More dartdocs go here.
+/// A network-free local Blossom blob store for Dart.
 library;
 
-export 'src/blossom_cache_base.dart';
-
-// TODO: Export any libraries intended for clients of this package.
+export 'src/blob_descriptor.dart';
+export 'src/blossom_cache.dart';
+export 'src/idb_blossom_cache.dart';

@@ -1,39 +1,74 @@
-<!-- 
-This README describes the package. If you publish this package to pub.dev,
-this README's contents appear on the landing page for your package.
+# blossom_cache
 
-For information about how to write a good package README, see the guide for
-[writing package pages](https://dart.dev/tools/pub/writing-package-pages). 
+A network-free local [Blossom](https://github.com/hzrd149/blossom) blob store
+for Dart. Same code runs on web, native, and server.
 
-For general information about developing packages, see the Dart guide for
-[creating packages](https://dart.dev/guides/libraries/create-packages)
-and the Flutter guide for
-[developing packages and plugins](https://flutter.dev/to/develop-packages). 
--->
+Blobs are addressed by their sha256 hash. The cache itself does not compute or
+verify the hash — it is a key/value store that happens to use sha256 as the
+key namespace. The caller is responsible for hashing, which lets web apps use
+fast `crypto.subtle.digest` instead of a slower pure-Dart implementation.
 
-TODO: Put a short description of the package here that helps potential users
-know whether this package might be useful for them.
+## Install
 
-## Features
-
-TODO: List what your package can do. Maybe include images, gifs, or videos.
-
-## Getting started
-
-TODO: List prerequisites and provide or point to information on how to
-start using the package.
+```yaml
+dependencies:
+  blossom_cache: ^0.1.0
+  idb_shim: ^2.9.2
+```
 
 ## Usage
 
-TODO: Include short and useful examples for package users. Add longer examples
-to `/example` folder. 
+Pick the [`IdbFactory`](https://pub.dev/packages/idb_shim) for your target,
+then open the cache:
 
 ```dart
-const like = 'sample';
+import 'dart:typed_data';
+import 'package:blossom_cache/blossom_cache.dart';
+
+// Web
+import 'package:idb_shim/idb_browser.dart';
+final cache = await IdbBlossomCache.open(factory: idbFactoryBrowser);
+
+// Native / server (persistent on disk via sembast)
+import 'package:idb_shim/idb_io.dart';
+final cache = await IdbBlossomCache.open(factory: idbFactorySembastIo);
+
+// Tests / ephemeral
+import 'package:idb_shim/idb_client_memory.dart';
+final cache = await IdbBlossomCache.open(factory: newIdbFactoryMemory());
 ```
 
-## Additional information
+Then:
 
-TODO: Tell users more about the package: where to find more information, how to 
-contribute to the package, how to file issues, what response they can expect 
-from the package authors, and more.
+```dart
+final sha = '...'; // caller-supplied sha256 hex
+
+await cache.put(sha, bytes, type: 'image/png');
+final read = await cache.get(sha);    // Uint8List? — updates lastAccessedAt
+final meta = await cache.head(sha);   // BlobDescriptor? — metadata only
+final all  = await cache.list();      // List<BlobDescriptor>
+await cache.delete(sha);              // bool — manual delete
+
+await cache.pin(sha);                 // protect from future auto-eviction
+await cache.unpin(sha);
+```
+
+## Pinning
+
+Each blob has a `pinned` flag. A future `BoundedBlossomCache` decorator will
+evict by LRU when the cache exceeds a size limit, skipping pinned blobs.
+Manual `delete` ignores the flag and always removes the blob.
+
+```dart
+// Avatar — evictable
+await cache.put(sha, avatarBytes, type: 'image/png');
+
+// Important file — never auto-evicted
+await cache.put(sha, fileBytes, type: 'application/pdf', pinned: true);
+```
+
+## Custom backends
+
+`BlossomCache` is an abstract class. Implement it against any storage you like
+(disk, OPFS, S3, …). The interface is intentionally small: `put`, `get`,
+`head`, `delete`, `pin`, `unpin`, `list`.
