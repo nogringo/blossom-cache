@@ -53,11 +53,27 @@ await cache.pin(sha);                 // protect from future auto-eviction
 await cache.unpin(sha);
 ```
 
+## Bounded cache (LRU eviction)
+
+Wrap any `BlossomCache` in a `BoundedBlossomCache` to cap total size. When a
+`put` would exceed the limit, the decorator evicts blobs by `lastAccessedAt`
+ascending (LRU), skipping pinned blobs:
+
+```dart
+final cache = BoundedBlossomCache(
+  inner: await IdbBlossomCache.open(factory: idbFactoryBrowser),
+  maxSize: 500 * 1024 * 1024, // 500 MB
+);
+```
+
+If the cache cannot make enough room — a single blob is bigger than `maxSize`,
+or every remaining blob is pinned — `put` throws
+`BlossomCacheOverflowException` and the cache is left unchanged.
+
 ## Pinning
 
-Each blob has a `pinned` flag. A future `BoundedBlossomCache` decorator will
-evict by LRU when the cache exceeds a size limit, skipping pinned blobs.
-Manual `delete` ignores the flag and always removes the blob.
+Each blob has a `pinned` flag. `BoundedBlossomCache` will not auto-evict
+pinned blobs. Manual `delete` ignores the flag and always removes the blob.
 
 ```dart
 // Avatar — evictable
