@@ -1,3 +1,14 @@
+## 0.3.0
+
+- Fix Android `CursorWindow` ~2 MB row limit when `idb_shim` is backed by
+  sqflite: `IdbBlossomCache` now stores blobs as fixed-size chunks instead of
+  a single row, so blobs larger than ~2 MB round-trip correctly on Android.
+- Add `chunkSize` parameter to `IdbBlossomCache.open()` (default 1 MB). Raise
+  it on web for fewer round-trips, lower it for constrained devices.
+- **Breaking (on-disk):** database schema bumped to version 2. Caches written
+  by 0.2.0 and earlier are dropped on first open with this version; the API is
+  unchanged.
+
 ## 0.2.0
 
 - **Breaking:** `BlossomCache.put` now takes `bytes` as the only positional

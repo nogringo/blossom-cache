@@ -1,6 +1,6 @@
 name: blossom_cache
 description: A network-free local Blossom blob store for Dart. Works on web, native, and server.
-version: 0.2.0
+version: 0.3.0
 repository: https://github.com/nogringo/blossom-cache
 
 topics:

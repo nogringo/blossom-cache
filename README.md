@@ -49,10 +49,10 @@ final sha = descriptor.sha256;
 // Or, when you already have it:
 await cache.put(bytes, sha256: sha, type: 'image/png');
 
-final read = await cache.get(sha);    // Uint8List? — updates lastAccessedAt
-final meta = await cache.head(sha);   // BlobDescriptor? — metadata only
+final read = await cache.get(sha);    // Uint8List?, updates lastAccessedAt
+final meta = await cache.head(sha);   // BlobDescriptor?, metadata only
 final all  = await cache.list();      // List<BlobDescriptor>
-await cache.delete(sha);              // bool — manual delete
+await cache.delete(sha);              // bool, manual delete
 
 await cache.pin(sha);                 // protect from future auto-eviction
 await cache.unpin(sha);
@@ -71,8 +71,8 @@ final cache = BoundedBlossomCache(
 );
 ```
 
-If the cache cannot make enough room — a single blob is bigger than `maxSize`,
-or every remaining blob is pinned — `put` throws
+If the cache cannot make enough room (a single blob is bigger than `maxSize`,
+or every remaining blob is pinned), `put` throws
 `BlossomCacheOverflowException` and the cache is left unchanged.
 
 ## Pinning
@@ -81,10 +81,10 @@ Each blob has a `pinned` flag. `BoundedBlossomCache` will not auto-evict
 pinned blobs. Manual `delete` ignores the flag and always removes the blob.
 
 ```dart
-// Avatar — evictable
+// Avatar, evictable
 await cache.put(avatarBytes, type: 'image/png');
 
-// Important file — never auto-evicted
+// Important file, never auto-evicted
 await cache.put(fileBytes, type: 'application/pdf', pinned: true);
 ```
 

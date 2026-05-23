@@ -16,7 +16,7 @@ import 'sha256_hex.dart';
 /// Not concurrency-safe: it is assumed that calls into the same instance are
 /// serialised by the caller. Every `put` reads the full inner descriptor list
 /// to compute current usage, so this decorator scales linearly with blob
-/// count — fine for a few thousand blobs, slow past that.
+/// count. Fine for a few thousand blobs, slow past that.
 class BoundedBlossomCache implements BlossomCache {
   /// The wrapped cache. Do not call its methods directly; bypassing the
   /// decorator skips eviction accounting.

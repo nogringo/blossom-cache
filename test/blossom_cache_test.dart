@@ -149,5 +149,28 @@ void main() {
       expect(await cache.get(_sha1), equals(bytes));
       await cache.close();
     });
+
+    test('round-trips a blob spanning multiple chunks', () async {
+      final cache = await IdbBlossomCache.open(
+        factory: newIdbFactoryMemory(),
+        chunkSize: 1024,
+      );
+      // 2500 bytes => 3 chunks (1024 + 1024 + 452), exercises a partial tail.
+      final bytes = Uint8List.fromList(List.generate(2500, (i) => i % 256));
+
+      final descriptor = await cache.put(bytes);
+      expect(descriptor.size, 2500);
+
+      final read = await cache.get(descriptor.sha256);
+      expect(read, equals(bytes));
+
+      // Overwriting with a smaller blob must purge stale tail chunks so a
+      // subsequent get returns exactly the new bytes, not a concatenation.
+      final smaller = Uint8List.fromList(List.generate(500, (i) => i % 256));
+      await cache.put(smaller, sha256: descriptor.sha256);
+      expect(await cache.get(descriptor.sha256), equals(smaller));
+
+      await cache.close();
+    });
   });
 }
