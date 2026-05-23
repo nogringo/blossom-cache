@@ -25,17 +25,16 @@ void main() {
   group('BoundedBlossomCache', () {
     test('puts under the limit pass through unchanged', () async {
       final cache = await _open(100);
-      await cache.put(_shaA, _bytes(30));
-      await cache.put(_shaB, _bytes(40));
-      expect((await cache.list()).map((d) => d.sha256).toSet(),
-          {_shaA, _shaB});
+      await cache.put(_bytes(30), sha256: _shaA);
+      await cache.put(_bytes(40), sha256: _shaB);
+      expect((await cache.list()).map((d) => d.sha256).toSet(), {_shaA, _shaB});
     });
 
     test('evicts LRU when limit would be exceeded', () async {
       final cache = await _open(100);
-      await cache.put(_shaA, _bytes(40));
+      await cache.put(_bytes(40), sha256: _shaA);
       await Future.delayed(const Duration(milliseconds: 5));
-      await cache.put(_shaB, _bytes(40));
+      await cache.put(_bytes(40), sha256: _shaB);
       await Future.delayed(const Duration(milliseconds: 5));
 
       // Touch A so B becomes the LRU.
@@ -43,7 +42,7 @@ void main() {
       await Future.delayed(const Duration(milliseconds: 5));
 
       // Inserting C (40 B) would push total to 120 > 100. B is the LRU.
-      await cache.put(_shaC, _bytes(40));
+      await cache.put(_bytes(40), sha256: _shaC);
 
       expect(await cache.head(_shaA), isNotNull);
       expect(await cache.head(_shaB), isNull, reason: 'B was LRU');
@@ -52,16 +51,16 @@ void main() {
 
     test('evicts multiple blobs if one is not enough', () async {
       final cache = await _open(100);
-      await cache.put(_shaA, _bytes(30));
+      await cache.put(_bytes(30), sha256: _shaA);
       await Future.delayed(const Duration(milliseconds: 5));
-      await cache.put(_shaB, _bytes(30));
+      await cache.put(_bytes(30), sha256: _shaB);
       await Future.delayed(const Duration(milliseconds: 5));
-      await cache.put(_shaC, _bytes(30));
+      await cache.put(_bytes(30), sha256: _shaC);
       await Future.delayed(const Duration(milliseconds: 5));
 
       // Insert D (60 B): current total 90, future would be 150, must free 50.
       // LRU order: A, B, C. Evicting A frees 30, B frees another 30 → enough.
-      await cache.put(_shaD, _bytes(60));
+      await cache.put(_bytes(60), sha256: _shaD);
 
       expect(await cache.head(_shaA), isNull);
       expect(await cache.head(_shaB), isNull);
@@ -71,12 +70,12 @@ void main() {
 
     test('pinned blobs are not evicted', () async {
       final cache = await _open(100);
-      await cache.put(_shaA, _bytes(40), pinned: true);
+      await cache.put(_bytes(40), sha256: _shaA, pinned: true);
       await Future.delayed(const Duration(milliseconds: 5));
-      await cache.put(_shaB, _bytes(40));
+      await cache.put(_bytes(40), sha256: _shaB);
       await Future.delayed(const Duration(milliseconds: 5));
 
-      await cache.put(_shaC, _bytes(40));
+      await cache.put(_bytes(40), sha256: _shaC);
 
       expect(await cache.head(_shaA), isNotNull, reason: 'A is pinned');
       expect(await cache.head(_shaB), isNull, reason: 'B was LRU non-pinned');
@@ -86,7 +85,7 @@ void main() {
     test('throws when blob alone exceeds maxSize', () async {
       final cache = await _open(50);
       await expectLater(
-        cache.put(_shaA, _bytes(100)),
+        cache.put(_bytes(100), sha256: _shaA),
         throwsA(isA<BlossomCacheOverflowException>()),
       );
       expect(await cache.list(), isEmpty);
@@ -94,11 +93,11 @@ void main() {
 
     test('throws when all remaining blobs are pinned and cannot fit', () async {
       final cache = await _open(100);
-      await cache.put(_shaA, _bytes(40), pinned: true);
-      await cache.put(_shaB, _bytes(40), pinned: true);
+      await cache.put(_bytes(40), sha256: _shaA, pinned: true);
+      await cache.put(_bytes(40), sha256: _shaB, pinned: true);
 
       await expectLater(
-        cache.put(_shaC, _bytes(40)),
+        cache.put(_bytes(40), sha256: _shaC),
         throwsA(isA<BlossomCacheOverflowException>()),
       );
 
@@ -110,12 +109,12 @@ void main() {
 
     test('re-put same key uses delta size (no spurious eviction)', () async {
       final cache = await _open(100);
-      await cache.put(_shaA, _bytes(40));
+      await cache.put(_bytes(40), sha256: _shaA);
       await Future.delayed(const Duration(milliseconds: 5));
-      await cache.put(_shaB, _bytes(40));
+      await cache.put(_bytes(40), sha256: _shaB);
 
       // Re-put A with smaller bytes; future total = 80 - 40 + 20 = 60, no eviction.
-      await cache.put(_shaA, _bytes(20));
+      await cache.put(_bytes(20), sha256: _shaA);
 
       expect(await cache.head(_shaA), isNotNull);
       expect(await cache.head(_shaB), isNotNull);
@@ -124,14 +123,14 @@ void main() {
 
     test('re-put same key larger triggers eviction of others', () async {
       final cache = await _open(100);
-      await cache.put(_shaA, _bytes(40));
+      await cache.put(_bytes(40), sha256: _shaA);
       await Future.delayed(const Duration(milliseconds: 5));
-      await cache.put(_shaB, _bytes(40));
+      await cache.put(_bytes(40), sha256: _shaB);
       await Future.delayed(const Duration(milliseconds: 5));
 
       // Re-put A with bigger payload; future total = 80 - 40 + 90 = 130 > 100.
       // Must free 30. Only B is evictable (40 B) → enough.
-      await cache.put(_shaA, _bytes(90));
+      await cache.put(_bytes(90), sha256: _shaA);
 
       expect((await cache.head(_shaA))!.size, 90);
       expect(await cache.head(_shaB), isNull);

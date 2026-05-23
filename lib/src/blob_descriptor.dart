@@ -36,13 +36,13 @@ class BlobDescriptor {
   /// JSON shape compatible with Blossom protocol responses. The `accessed`
   /// field is a local extension and not part of the standard Blossom spec.
   Map<String, Object?> toJson() => {
-        'sha256': sha256,
-        'size': size,
-        if (type != null) 'type': type,
-        'uploaded': uploadedAt.millisecondsSinceEpoch ~/ 1000,
-        'accessed': lastAccessedAt.millisecondsSinceEpoch ~/ 1000,
-        if (pinned) 'pinned': true,
-      };
+    'sha256': sha256,
+    'size': size,
+    if (type != null) 'type': type,
+    'uploaded': uploadedAt.millisecondsSinceEpoch ~/ 1000,
+    'accessed': lastAccessedAt.millisecondsSinceEpoch ~/ 1000,
+    if (pinned) 'pinned': true,
+  };
 
   @override
   bool operator ==(Object other) =>

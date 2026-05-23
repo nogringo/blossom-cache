@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'blob_descriptor.dart';
 import 'blossom_cache.dart';
 import 'blossom_cache_exception.dart';
+import 'sha256_hex.dart';
 
 /// A [BlossomCache] that caps the total stored size and evicts blobs in LRU
 /// order (`lastAccessedAt` ascending) when a `put` would exceed [maxSize].
@@ -32,8 +33,8 @@ class BoundedBlossomCache implements BlossomCache {
 
   @override
   Future<BlobDescriptor> put(
-    String sha256,
     Uint8List bytes, {
+    String? sha256,
     String? type,
     bool pinned = false,
   }) async {
@@ -45,17 +46,16 @@ class BoundedBlossomCache implements BlossomCache {
       );
     }
 
+    final key = sha256 ?? sha256Hex(bytes);
     final all = await inner.list();
-    final existing = all.where((d) => d.sha256 == sha256).firstOrNull;
+    final existing = all.where((d) => d.sha256 == key).firstOrNull;
     final existingSize = existing?.size ?? 0;
     final currentTotal = all.fold<int>(0, (s, d) => s + d.size);
     final futureTotal = currentTotal - existingSize + bytes.length;
 
     if (futureTotal > maxSize) {
       final mustFree = futureTotal - maxSize;
-      final evictable = all
-          .where((d) => !d.pinned && d.sha256 != sha256)
-          .toList()
+      final evictable = all.where((d) => !d.pinned && d.sha256 != key).toList()
         ..sort((a, b) => a.lastAccessedAt.compareTo(b.lastAccessedAt));
 
       var freed = 0;
@@ -73,7 +73,7 @@ class BoundedBlossomCache implements BlossomCache {
       }
     }
 
-    return inner.put(sha256, bytes, type: type, pinned: pinned);
+    return inner.put(bytes, sha256: key, type: type, pinned: pinned);
   }
 
   @override

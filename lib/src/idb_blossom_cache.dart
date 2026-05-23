@@ -4,6 +4,7 @@ import 'package:idb_shim/idb.dart';
 
 import 'blob_descriptor.dart';
 import 'blossom_cache.dart';
+import 'sha256_hex.dart';
 
 /// A [BlossomCache] backed by [idb_shim], so the same code runs on web
 /// (real IndexedDB), native/server (sembast), or pure in-memory (tests).
@@ -70,14 +71,15 @@ class IdbBlossomCache implements BlossomCache {
 
   @override
   Future<BlobDescriptor> put(
-    String sha256,
     Uint8List bytes, {
+    String? sha256,
     String? type,
     bool pinned = false,
   }) async {
+    final key = sha256 ?? sha256Hex(bytes);
     final now = DateTime.now().toUtc();
     final descriptor = BlobDescriptor(
-      sha256: sha256,
+      sha256: key,
       size: bytes.length,
       type: type,
       uploadedAt: now,
@@ -85,12 +87,12 @@ class IdbBlossomCache implements BlossomCache {
       pinned: pinned,
     );
 
-    final txn = _required.transactionList(
-      [_metaStore, _blobStore],
-      idbModeReadWrite,
-    );
-    await txn.objectStore(_metaStore).put(_toMap(descriptor), sha256);
-    await txn.objectStore(_blobStore).put(bytes, sha256);
+    final txn = _required.transactionList([
+      _metaStore,
+      _blobStore,
+    ], idbModeReadWrite);
+    await txn.objectStore(_metaStore).put(_toMap(descriptor), key);
+    await txn.objectStore(_blobStore).put(bytes, key);
     await txn.completed;
 
     return descriptor;
@@ -98,23 +100,22 @@ class IdbBlossomCache implements BlossomCache {
 
   @override
   Future<Uint8List?> get(String sha256) async {
-    final txn = _required.transactionList(
-      [_metaStore, _blobStore],
-      idbModeReadWrite,
-    );
+    final txn = _required.transactionList([
+      _metaStore,
+      _blobStore,
+    ], idbModeReadWrite);
     final raw = await txn.objectStore(_blobStore).getObject(sha256);
     final bytes = raw is Uint8List
         ? raw
         : raw is List<int>
-            ? Uint8List.fromList(raw)
-            : null;
+        ? Uint8List.fromList(raw)
+        : null;
 
     if (bytes != null) {
       final metaRaw = await txn.objectStore(_metaStore).getObject(sha256);
       if (metaRaw is Map) {
         final updated = Map<String, Object?>.from(metaRaw)
-          ..['lastAccessedAt'] =
-              DateTime.now().toUtc().millisecondsSinceEpoch;
+          ..['lastAccessedAt'] = DateTime.now().toUtc().millisecondsSinceEpoch;
         await txn.objectStore(_metaStore).put(updated, sha256);
       }
     }
@@ -133,10 +134,10 @@ class IdbBlossomCache implements BlossomCache {
 
   @override
   Future<bool> delete(String sha256) async {
-    final txn = _required.transactionList(
-      [_metaStore, _blobStore],
-      idbModeReadWrite,
-    );
+    final txn = _required.transactionList([
+      _metaStore,
+      _blobStore,
+    ], idbModeReadWrite);
     final existed =
         (await txn.objectStore(_metaStore).getObject(sha256)) != null;
     await txn.objectStore(_metaStore).delete(sha256);
@@ -181,28 +182,28 @@ class IdbBlossomCache implements BlossomCache {
   }
 
   static Map<String, Object?> _toMap(BlobDescriptor d) => {
-        'sha256': d.sha256,
-        'size': d.size,
-        'type': d.type,
-        'uploadedAt': d.uploadedAt.millisecondsSinceEpoch,
-        'lastAccessedAt': d.lastAccessedAt.millisecondsSinceEpoch,
-        'pinned': d.pinned,
-      };
+    'sha256': d.sha256,
+    'size': d.size,
+    'type': d.type,
+    'uploadedAt': d.uploadedAt.millisecondsSinceEpoch,
+    'lastAccessedAt': d.lastAccessedAt.millisecondsSinceEpoch,
+    'pinned': d.pinned,
+  };
 
   static BlobDescriptor _fromMap(Map<String, Object?> m) => BlobDescriptor(
-        sha256: m['sha256'] as String,
-        size: m['size'] as int,
-        type: m['type'] as String?,
-        uploadedAt: DateTime.fromMillisecondsSinceEpoch(
-          m['uploadedAt'] as int,
-          isUtc: true,
-        ),
-        lastAccessedAt: m['lastAccessedAt'] is int
-            ? DateTime.fromMillisecondsSinceEpoch(
-                m['lastAccessedAt'] as int,
-                isUtc: true,
-              )
-            : null,
-        pinned: m['pinned'] as bool? ?? false,
-      );
+    sha256: m['sha256'] as String,
+    size: m['size'] as int,
+    type: m['type'] as String?,
+    uploadedAt: DateTime.fromMillisecondsSinceEpoch(
+      m['uploadedAt'] as int,
+      isUtc: true,
+    ),
+    lastAccessedAt: m['lastAccessedAt'] is int
+        ? DateTime.fromMillisecondsSinceEpoch(
+            m['lastAccessedAt'] as int,
+            isUtc: true,
+          )
+        : null,
+    pinned: m['pinned'] as bool? ?? false,
+  );
 }

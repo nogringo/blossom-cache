@@ -18,7 +18,11 @@ void main() {
   group('IdbBlossomCache', () {
     test('put then get returns the bytes', () async {
       final cache = await _open();
-      await cache.put(_sha1, _bytes([1, 2, 3]), type: 'application/octet-stream');
+      await cache.put(
+        _bytes([1, 2, 3]),
+        sha256: _sha1,
+        type: 'application/octet-stream',
+      );
       expect(await cache.get(_sha1), equals(_bytes([1, 2, 3])));
       await cache.close();
     });
@@ -31,7 +35,7 @@ void main() {
 
     test('head returns descriptor without loading bytes', () async {
       final cache = await _open();
-      await cache.put(_sha1, _bytes([1, 2, 3]), type: 'image/png');
+      await cache.put(_bytes([1, 2, 3]), sha256: _sha1, type: 'image/png');
       final d = await cache.head(_sha1);
       expect(d, isNotNull);
       expect(d!.sha256, _sha1);
@@ -49,7 +53,7 @@ void main() {
 
     test('delete returns true the first time, false after', () async {
       final cache = await _open();
-      await cache.put(_sha1, _bytes([9]));
+      await cache.put(_bytes([9]), sha256: _sha1);
       expect(await cache.delete(_sha1), isTrue);
       expect(await cache.delete(_sha1), isFalse);
       expect(await cache.get(_sha1), isNull);
@@ -59,8 +63,8 @@ void main() {
 
     test('list returns every descriptor', () async {
       final cache = await _open();
-      await cache.put(_sha1, _bytes([1]));
-      await cache.put(_sha2, _bytes([2, 2]));
+      await cache.put(_bytes([1]), sha256: _sha1);
+      await cache.put(_bytes([2, 2]), sha256: _sha2);
       final all = await cache.list();
       expect(all.map((d) => d.sha256).toSet(), {_sha1, _sha2});
       await cache.close();
@@ -68,27 +72,33 @@ void main() {
 
     test('get updates lastAccessedAt; head does not', () async {
       final cache = await _open();
-      await cache.put(_sha1, _bytes([1, 2, 3]));
+      await cache.put(_bytes([1, 2, 3]), sha256: _sha1);
       final before = (await cache.head(_sha1))!.lastAccessedAt;
 
       await Future.delayed(const Duration(milliseconds: 5));
       await cache.head(_sha1);
       final afterHead = (await cache.head(_sha1))!.lastAccessedAt;
-      expect(afterHead, equals(before),
-          reason: 'head must not update lastAccessedAt');
+      expect(
+        afterHead,
+        equals(before),
+        reason: 'head must not update lastAccessedAt',
+      );
 
       await Future.delayed(const Duration(milliseconds: 5));
       await cache.get(_sha1);
       final afterGet = (await cache.head(_sha1))!.lastAccessedAt;
-      expect(afterGet.isAfter(before), isTrue,
-          reason: 'get must update lastAccessedAt');
+      expect(
+        afterGet.isAfter(before),
+        isTrue,
+        reason: 'get must update lastAccessedAt',
+      );
 
       await cache.close();
     });
 
     test('pin/unpin toggle the flag and report state changes', () async {
       final cache = await _open();
-      await cache.put(_sha1, _bytes([1]));
+      await cache.put(_bytes([1]), sha256: _sha1);
 
       expect(await cache.pin(_sha1), isTrue);
       expect((await cache.head(_sha1))!.pinned, isTrue);
@@ -110,7 +120,7 @@ void main() {
 
     test('delete ignores pinned flag (manual delete works)', () async {
       final cache = await _open();
-      await cache.put(_sha1, _bytes([1]), pinned: true);
+      await cache.put(_bytes([1]), sha256: _sha1, pinned: true);
       expect(await cache.delete(_sha1), isTrue);
       expect(await cache.head(_sha1), isNull);
       await cache.close();
@@ -118,13 +128,25 @@ void main() {
 
     test('put overwrites and refreshes uploadedAt', () async {
       final cache = await _open();
-      await cache.put(_sha1, _bytes([1]));
+      await cache.put(_bytes([1]), sha256: _sha1);
       final first = (await cache.head(_sha1))!.uploadedAt;
       await Future.delayed(const Duration(milliseconds: 5));
-      await cache.put(_sha1, _bytes([1, 2]));
+      await cache.put(_bytes([1, 2]), sha256: _sha1);
       final second = (await cache.head(_sha1))!;
       expect(second.size, 2);
       expect(second.uploadedAt.isAfter(first), isTrue);
+      await cache.close();
+    });
+
+    test('put without sha256 computes the hash from the bytes', () async {
+      final cache = await _open();
+      // sha256('hello') == _sha1.
+      final bytes = Uint8List.fromList('hello'.codeUnits);
+
+      final descriptor = await cache.put(bytes);
+
+      expect(descriptor.sha256, _sha1);
+      expect(await cache.get(_sha1), equals(bytes));
       await cache.close();
     });
   });

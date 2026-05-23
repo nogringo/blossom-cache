@@ -4,15 +4,18 @@ import 'blob_descriptor.dart';
 
 /// A local, network-free Blossom blob store.
 ///
-/// Blobs are addressed by their sha256 hash, supplied by the caller. The cache
-/// does not compute or verify the hash — it is a key/value store that happens
-/// to use sha256 as the key namespace.
+/// Blobs are addressed by their sha256 hash. The caller may supply the hash
+/// (cheap when it is already known, e.g. from a Blossom server response) or
+/// let the cache compute it.
 ///
 /// Implementations may be backed by memory, disk, IndexedDB, or anything else.
 /// All operations are asynchronous so the same interface fits sync and async
 /// backends uniformly.
 abstract class BlossomCache {
-  /// Stores [bytes] under [sha256] and returns the descriptor.
+  /// Stores [bytes] and returns the descriptor.
+  ///
+  /// If [sha256] is `null` the cache computes it from [bytes]; otherwise the
+  /// supplied value is used as-is and is not verified.
   ///
   /// Putting the same key twice overwrites the previous bytes and refreshes
   /// the descriptor's [BlobDescriptor.uploadedAt].
@@ -20,8 +23,8 @@ abstract class BlossomCache {
   /// When [pinned] is `true`, the blob is excluded from automatic eviction
   /// (e.g. by [BoundedBlossomCache]). Manual [delete] still removes it.
   Future<BlobDescriptor> put(
-    String sha256,
     Uint8List bytes, {
+    String? sha256,
     String? type,
     bool pinned = false,
   });

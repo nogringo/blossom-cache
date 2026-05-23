@@ -3,10 +3,11 @@
 A network-free local [Blossom](https://github.com/hzrd149/blossom) blob store
 for Dart. Same code runs on web, native, and server.
 
-Blobs are addressed by their sha256 hash. The cache itself does not compute or
-verify the hash — it is a key/value store that happens to use sha256 as the
-key namespace. The caller is responsible for hashing, which lets web apps use
-fast `crypto.subtle.digest` instead of a slower pure-Dart implementation.
+Blobs are addressed by their sha256 hash. The cache computes the hash from the
+bytes by default; callers that already have one (e.g. from a Blossom server
+response, or from a faster platform digest like `crypto.subtle.digest` on web)
+can pass it via the `sha256:` parameter to skip the computation. Supplied
+hashes are trusted as-is and not verified.
 
 ## Install
 
@@ -41,9 +42,13 @@ final cache = await IdbBlossomCache.open(factory: newIdbFactoryMemory());
 Then:
 
 ```dart
-final sha = '...'; // caller-supplied sha256 hex
+// Hash computed by the cache:
+final descriptor = await cache.put(bytes, type: 'image/png');
+final sha = descriptor.sha256;
 
-await cache.put(sha, bytes, type: 'image/png');
+// Or, when you already have it:
+await cache.put(bytes, sha256: sha, type: 'image/png');
+
 final read = await cache.get(sha);    // Uint8List? — updates lastAccessedAt
 final meta = await cache.head(sha);   // BlobDescriptor? — metadata only
 final all  = await cache.list();      // List<BlobDescriptor>
@@ -77,10 +82,10 @@ pinned blobs. Manual `delete` ignores the flag and always removes the blob.
 
 ```dart
 // Avatar — evictable
-await cache.put(sha, avatarBytes, type: 'image/png');
+await cache.put(avatarBytes, type: 'image/png');
 
 // Important file — never auto-evicted
-await cache.put(sha, fileBytes, type: 'application/pdf', pinned: true);
+await cache.put(fileBytes, type: 'application/pdf', pinned: true);
 ```
 
 ## Custom backends

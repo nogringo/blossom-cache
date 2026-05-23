@@ -10,11 +10,12 @@ import 'package:idb_shim/idb_client_memory.dart';
 Future<void> main() async {
   final cache = await IdbBlossomCache.open(factory: newIdbFactoryMemory());
 
-  const sha = '2cf24dba5fb0a30e26e83b2ac5b9e29e1b161e5c1fa7425e73043362938b9824';
   final bytes = Uint8List.fromList('hello'.codeUnits);
 
-  final descriptor = await cache.put(sha, bytes, type: 'text/plain');
-  print('Stored ${descriptor.sha256} (${descriptor.size} B)');
+  // Omit `sha256:` to have the cache compute it from the bytes.
+  final descriptor = await cache.put(bytes, type: 'text/plain');
+  final sha = descriptor.sha256;
+  print('Stored $sha (${descriptor.size} B)');
 
   final read = await cache.get(sha);
   print('Read back: ${String.fromCharCodes(read!)}');
