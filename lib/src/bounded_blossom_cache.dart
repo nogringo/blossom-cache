@@ -93,4 +93,7 @@ class BoundedBlossomCache implements BlossomCache {
 
   @override
   Future<List<BlobDescriptor>> list() => inner.list();
+
+  @override
+  Future<void> clearAllLocalData() => inner.clearAllLocalData();
 }

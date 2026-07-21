@@ -1,3 +1,13 @@
+## 0.4.0
+
+- Add `BlossomCache.clearAllLocalData()`, which wipes every blob and its
+  metadata (pinned ones included) and leaves the cache usable. On
+  `IdbBlossomCache` it clears both object stores in a single transaction, so
+  it also reclaims any orphaned chunk.
+- **Breaking (implementers only):** custom `BlossomCache` implementations must
+  now provide `clearAllLocalData`. Callers of the built-in caches are
+  unaffected.
+
 ## 0.3.0
 
 - Fix Android `CursorWindow` ~2 MB row limit when `idb_shim` is backed by

@@ -150,6 +150,25 @@ void main() {
       await cache.close();
     });
 
+    test('clearAllLocalData removes everything, pinned included', () async {
+      final cache = await _open();
+      await cache.put(_bytes([1, 2, 3]), sha256: _sha1, pinned: true);
+      await cache.put(_bytes([4, 5]), sha256: _sha2);
+
+      await cache.clearAllLocalData();
+
+      expect(await cache.list(), isEmpty);
+      expect(await cache.get(_sha1), isNull);
+      expect(await cache.head(_sha2), isNull);
+
+      await cache.clearAllLocalData();
+      expect(await cache.list(), isEmpty);
+
+      await cache.put(_bytes([7]), sha256: _sha1);
+      expect(await cache.get(_sha1), equals(_bytes([7])));
+      await cache.close();
+    });
+
     test('round-trips a blob spanning multiple chunks', () async {
       final cache = await IdbBlossomCache.open(
         factory: newIdbFactoryMemory(),

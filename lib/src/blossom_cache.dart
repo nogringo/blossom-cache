@@ -55,4 +55,10 @@ abstract class BlossomCache {
 
   /// Lists every blob descriptor currently held by the cache.
   Future<List<BlobDescriptor>> list();
+
+  /// Removes every blob and its metadata, pinned ones included.
+  ///
+  /// The cache stays usable afterwards. Idempotent: clearing an empty cache
+  /// is a no-op.
+  Future<void> clearAllLocalData();
 }

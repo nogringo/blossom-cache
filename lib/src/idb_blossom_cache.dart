@@ -253,6 +253,17 @@ class IdbBlossomCache implements BlossomCache {
         .toList(growable: false);
   }
 
+  @override
+  Future<void> clearAllLocalData() async {
+    final txn = _required.transactionList([
+      _metaStore,
+      _blobStore,
+    ], idbModeReadWrite);
+    await txn.objectStore(_metaStore).clear();
+    await txn.objectStore(_blobStore).clear();
+    await txn.completed;
+  }
+
   static Map<String, Object?> _toMap(BlobDescriptor d) => {
     'sha256': d.sha256,
     'size': d.size,

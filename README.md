@@ -9,14 +9,6 @@ response, or from a faster platform digest like `crypto.subtle.digest` on web)
 can pass it via the `sha256:` parameter to skip the computation. Supplied
 hashes are trusted as-is and not verified.
 
-## Install
-
-```yaml
-dependencies:
-  blossom_cache: ^0.1.0
-  idb_shim: ^2.9.2
-```
-
 ## Usage
 
 Pick the [`IdbFactory`](https://pub.dev/packages/idb_shim) for your target,
@@ -56,6 +48,18 @@ await cache.delete(sha);              // bool, manual delete
 
 await cache.pin(sha);                 // protect from future auto-eviction
 await cache.unpin(sha);
+
+await cache.clearAllLocalData();      // wipe everything, pinned included
+```
+
+`clearAllLocalData` leaves the cache open and usable, so it fits a "clear
+cache" button or a logout flow:
+
+```dart
+Future<void> logout() async {
+  await cache.clearAllLocalData();
+  // ... then the rest of your session cleanup
+}
 ```
 
 ## Bounded cache (LRU eviction)
@@ -91,5 +95,5 @@ await cache.put(fileBytes, type: 'application/pdf', pinned: true);
 ## Custom backends
 
 `BlossomCache` is an abstract class. Implement it against any storage you like
-(disk, OPFS, S3, …). The interface is intentionally small: `put`, `get`,
-`head`, `delete`, `pin`, `unpin`, `list`.
+(disk, OPFS, S3, ...). The interface is intentionally small: `put`, `get`,
+`head`, `delete`, `pin`, `unpin`, `list`, `clearAllLocalData`.
